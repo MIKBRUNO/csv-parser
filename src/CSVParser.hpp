@@ -13,7 +13,7 @@ namespace csv {
     public:
         CSVParser(
             std::ifstream& f, size_t skip,
-            char lineDelim = '\n', char colDelim = ',', char fieldDelim = "\""
+            char lineDelim = '\n', char colDelim = ',', char fieldDelim = '\"'
         );
 
         class iterator : public std::iterator<
@@ -32,17 +32,33 @@ namespace csv {
                 return 0;
             }
             inline bool operator==(iterator o) const {
-                return (parent == o.parent && index == o.index && isend == o.isend);
+                return (
+                    &parent == &(o.parent) &&
+                    (
+                        ((index == o.index) && !(isend || o.isend)) ||
+                        (isend && isend)
+                    )
+                );
             }
             inline bool operator!=(iterator other) const {
                 return !(*this == other);
             }
             value_type operator*() const;
         private:
+        friend class CSVParser<Args...>;
             CSVParser<Args...>& parent;
             df_t index;
             bool isend;
         };
+
+        inline iterator begin() {
+            return iterator {*this, 0};
+        }
+        inline iterator end() {
+            iterator it {*this, 0};
+            it.isend = true;
+            return it;
+        }
     private:
         friend class iterator;
         std::ifstream& file;
@@ -110,8 +126,11 @@ namespace csv {
                     buf.clear();
                     STATE = CHECKDELIM;
                 }
-                else {
+                else if (c == fieldDelim) {
                     buf.back() = c;
+                }
+                else {
+                    buf.push_back(c);
                 }
                 break;
             case FIELD:
@@ -134,6 +153,24 @@ namespace csv {
             default:
                 break;
             }
+            c = ss.get();
+        }
+        switch (STATE)
+        {
+        case START:
+            out.push_back("");
+            break;
+        case FIELD:
+            out.push_back(buf);
+            break;
+        case INSIDE:
+            throw std::invalid_argument("Bad field at " + std::to_string(out.size()));
+            break;
+        case CHECKDELIM:
+            break;
+        
+        default:
+            break;
         }
     }
 
@@ -152,27 +189,30 @@ namespace csv {
             index = parent.size;
             isend = true;
         }
+        return (*this);
     }
 
     template <typename... Args>
     typename CSVParser<Args...>::iterator::value_type
     CSVParser<Args...>::iterator::operator*() const {
+        if (isend)
+            throw std::logic_error("Cannot get data from after-end iterator");
         std::ifstream& f = parent.file;
         f.clear();
         f.seekg(0, std::ios::beg);
         std::string buf;
         size_t i = 0;
         while (i < index) {
-            std::getline(file, buf, parent.lineDelim);
+            std::getline(f, buf, parent.lineDelim);
             ++i;
         }
-        std::getline(file, buf, parent.lineDelim);
+        std::getline(f, buf, parent.lineDelim);
         std::vector<std::string> v;
-        parseLine(v, buf);
+        parent.parseLine(v, buf);
         std::tuple<Args...> t;
         tuple_utils::parse(v, t);
-        file.clear();
-        file.seekg(0, std::ios::beg);
+        f.clear();
+        f.seekg(0, std::ios::beg);
         return t;
     }
     
