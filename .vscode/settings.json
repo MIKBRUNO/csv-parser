@@ -1,4 +1,7 @@
 {
+    "cmake.debugConfig": {
+        "args": []
+    },
     "files.associations": {
         "array": "cpp",
         "atomic": "cpp",

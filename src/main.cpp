@@ -8,8 +8,15 @@ using namespace csv;
 using namespace tuple_utils;
 
 int main(int argc, char* argv[]) {
-    auto t = make_tuple("123"s, 2ul, 0.2f);
-    cout << t << endl;
+    ifstream f { "../../res/addresses.csv" };
+    try {
+        CSVParser<string, string, string, string, string, string> csvparser {f, 0};
+        for (auto t : csvparser)
+            operator<<<0, '\n'>(cout, t) << endl << endl;
+    }
+    catch (const exception& e) {
+        cerr << e.what() << endl;
+    }
 
     return 0;
 }
