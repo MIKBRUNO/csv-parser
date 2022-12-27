@@ -6,14 +6,6 @@
 #include <iterator>
 #include <sstream>
 
-/*
-
-    TODO: good exceptions
-
-*/
-
-
-
 namespace csv {
 
     ///////////////////////////////// Defenitions of classes
@@ -202,7 +194,8 @@ namespace csv {
         case CHECKDELIM:
             break;
         case ESCAPECHAR:
-            throw syntax_error(0, out.size(), "Bad field formatting");
+            if ('\"' == escapeChar)
+                out.push_back(buf);
             break;
         
         default:

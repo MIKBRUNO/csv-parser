@@ -1,6 +1,8 @@
 {
     "cmake.debugConfig": {
-        "args": []
+        "args": [
+            "../../res/file.csv"
+        ]
     },
     "files.associations": {
         "array": "cpp",
