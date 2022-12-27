@@ -6,24 +6,25 @@
 #include <vector>
 #include <string>
 #include <sstream>
+#include "CSVExceptions.hpp"
 
-namespace tuple_utils {
+namespace csv::tuple_utils {
 
-    template <size_t I = 0, char Delim = ' ', typename Ch, typename Tr, typename... Args>
+    template <size_t I = 0, char Delim = ',', typename Ch, typename Tr, typename... Args>
     typename std::enable_if<I >= std::tuple_size<std::tuple<Args...>>::value,
     std::basic_ostream<Ch, Tr>&>::type
     operator<<(std::basic_ostream<Ch, Tr>& os, const std::tuple<Args...>& t) {
         return os;
     }
 
-    template <size_t I = 0, char Delim = ' ', typename Ch, typename Tr, typename... Args>
+    template <size_t I = 0, char Delim = ',', typename Ch, typename Tr, typename... Args>
     typename std::enable_if<I < std::tuple_size<std::tuple<Args...>>::value,
     std::basic_ostream<Ch, Tr>&>::type
     operator<<(std::basic_ostream<Ch, Tr>& os, const std::tuple<Args...>& t) {
         if (0 != I)
             os << Delim;
         os << std::get<I>(t);
-        return operator<<<I+1>(os, t);
+        return operator<<<I+1, Delim>(os, t);
     }
 
     template <size_t I = 0, typename... Args>
@@ -40,21 +41,22 @@ namespace tuple_utils {
     >::type
     parse(std::vector<std::string>& ss, std::tuple<Args...>& t) {
         if (ss.size() != std::tuple_size<std::tuple<Args...>>::value)
-            throw std::invalid_argument("Bad number of fields");
+            throw syntax_error(0, 0, "Bad number of elements in a row");
+        if constexpr (std::is_same<
+                typename std::tuple_element<I, std::tuple<Args...>>::type,
+                std::string
+            >::value)
+        {
+            std::get<I>(t) = ss[I];
+            parse<I+1>(ss, t);
+            return;
+        }
         std::stringstream sss;
         sss << ss[I];
         sss >> std::get<I>(t);
-        if (
-            (
-                sss.fail() &&
-                !std::is_same<
-                    std::string&,
-                    typename std::tuple_element<I, std::tuple<Args...>>::type
-                >::value
-            ) ||
-            !sss.eof()
-        )
-            throw std::invalid_argument("Bad " + std::to_string(I+1) + "th tuple element");
+        if ( sss.fail() || !sss.eof() )
+            throw interpret_error(
+                0, I+1, std::string("Bad element"));
         parse<I+1>(ss, t);
     }
 
